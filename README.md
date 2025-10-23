@@ -1,7 +1,7 @@
 # 🏃‍♂️ Personal Health Tracker
 
 A small, frontend-only web app to track daily water intake, sleep hours, and exercise minutes. Stores data in the browser (LocalStorage), provides a BMI calculator, and visualizes progress with charts.
-HELO
+
 ---
 
 ## Quick Start
