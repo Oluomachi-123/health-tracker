@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Personal Health Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
+<style>
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f4f7; margin:0; padding:0;}
+  header { background: #0078D4; color: white; padding: 20px; text-align: center; font-size: 28px; font-weight:bold; }
+  nav { background: #005a9e; display:flex; flex-wrap:wrap; justify-content:center; padding:10px;}
+  nav button { margin:5px; padding:10px 18px; font-size:16px; cursor:pointer; border-radius:8px; border:none; background:#0094FF; color:white; transition:0.3s;}
+  nav button:hover { background:#0078D4;}
+  section { display:none; max-width:800px; margin:20px auto; background:white; padding:25px; border-radius:12px; box-shadow:0 4px 15px rgba(0,0,0,0.1);}
+  h2 { text-align:center; margin-bottom:20px; color:#0078D4; }
+  label { display:block; margin-top:12px; font-weight:600; }
+  input { width:100%; padding:10px; margin-top:6px; border-radius:6px; border:1px solid #ccc; }
+  button.submit { margin-top:20px; width:100%; background:#0078D4; color:white; font-size:16px; padding:12px; border-radius:6px; border:none; cursor:pointer; transition:0.3s;}
+  button.submit:hover { background:#005a9e; }
+  table { width:100%; border-collapse: collapse; margin-top:15px;}
+  th, td { border:1px solid #ccc; padding:10px; text-align:center;}
+  .card { background:#e6f2ff; padding:15px; border-radius:10px; margin-bottom:15px; display:flex; align-items:center; gap:12px; }
+  .card i { font-size:24px; color:#0078D4; }
+  #bmiResult, #addMessage, #summaryText { text-align:center; margin-top:12px; font-weight:bold; }
+  @media(max-width:600px){ nav button{flex:1 1 40%;} }
+</style>
+</head>
+<body>
+
+<header>🏃‍♂️ Personal Health Tracker</header>
+<nav>
+  <button onclick="showPage('home')"><i class="fa-solid fa-house"></i> Home</button>
+  <button onclick="showPage('add')"><i class="fa-solid fa-plus"></i> Add Entry</button>
+  <button onclick="showPage('view')"><i class="fa-solid fa-table-list"></i> Records</button>
+  <button onclick="showPage('summary')"><i class="fa-solid fa-chart-pie"></i> Summary</button>
+  <button onclick="showPage('bmi')"><i class="fa-solid fa-weight-scale"></i> BMI</button>
+  <button onclick="showPage('charts')"><i class="fa-solid fa-chart-line"></i> Charts</button>
+</nav>
+
+<section id="home">
+  <div class="card"><i class="fa-solid fa-heart"></i><p>Track your daily water, sleep, and exercise with ease.</p></div>
+  <div class="card"><i class="fa-solid fa-scale-balanced"></i><p>Calculate your BMI and get health advice.</p></div>
+  <div class="card"><i class="fa-solid fa-chart-simple"></i><p>Visualize your progress with interactive charts and summaries.</p></div>
+</section>
+
+<section id="add">
+  <h2><i class="fa-solid fa-plus"></i> Add Daily Entry</h2>
+  <label>Date:</label>
+  <input type="date" id="entryDate" value="">
+  <label><i class="fa-solid fa-tint"></i> Water Intake (L):</label>
+  <input type="number" id="water" min="0" step="0.1">
+  <label><i class="fa-solid fa-bed"></i> Sleep Hours:</label>
+  <input type="number" id="sleep" min="0" step="0.1">
+  <label><i class="fa-solid fa-dumbbell"></i> Exercise Minutes:</label>
+  <input type="number" id="exercise" min="0" step="1">
+  <button class="submit" onclick="addEntry()">Save Entry</button>
+  <p id="addMessage" style="color:green;"></p>
+</section>
+
+<section id="view">
+  <h2><i class="fa-solid fa-table-list"></i> All Records</h2>
+  <table id="recordsTable">
+    <tr><th>Date</th><th>Water (L)</th><th>Sleep (h)</th><th>Exercise (min)</th></tr>
+  </table>
+</section>
+
+<section id="summary">
+  <h2><i class="fa-solid fa-chart-pie"></i> Summary</h2>
+  <p id="summaryText"></p>
+</section>
+
+<section id="bmi">
+  <h2><i class="fa-solid fa-weight-scale"></i> BMI Calculator</h2>
+  <label>Height (cm):</label>
+  <input type="number" id="height">
+  <label>Weight (kg):</label>
+  <input type="number" id="weight">
+  <button class="submit" onclick="calculateBMI()">Calculate BMI</button>
+  <p id="bmiResult"></p>
+</section>
+
+<section id="charts">
+  <h2><i class="fa-solid fa-chart-line"></i> Progress Charts</h2>
+  <canvas id="chartCanvas" style="max-width:100%;"></canvas>
+  <button class="submit" onclick="drawCharts()">Generate Charts</button>
+</section>
+
+<script>
+let records = JSON.parse(localStorage.getItem('healthRecords')) || {};
+
+function showPage(pageId){
+  document.querySelectorAll('section').forEach(sec=>sec.style.display='none');
+  document.getElementById(pageId).style.display='block';
+  if(pageId==='view') displayRecords();
+  if(pageId==='summary') displaySummary();
+}
+
+function addEntry(){
+  let date = document.getElementById('entryDate').value;
+  if(!date) date=new Date().toISOString().slice(0,10);
+  let water=parseFloat(document.getElementById('water').value)||0;
+  let sleep=parseFloat(document.getElementById('sleep').value)||0;
+  let exercise=parseFloat(document.getElementById('exercise').value)||0;
+  records[date]={water,sleep,exercise};
+  localStorage.setItem('healthRecords', JSON.stringify(records));
+  document.getElementById('addMessage').innerText=`Entry saved for ${date}!`;
+  document.getElementById('water').value=''; document.getElementById('sleep').value=''; document.getElementById('exercise').value='';
+}
+
+function displayRecords(){
+  let table=document.getElementById('recordsTable');
+  table.innerHTML=`<tr><th>Date</th><th>Water (L)</th><th>Sleep (h)</th><th>Exercise (min)</th></tr>`;
+  Object.keys(records).sort().forEach(date=>{
+    let r=records[date];
+    let row=table.insertRow();
+    row.insertCell(0).innerText=date;
+    row.insertCell(1).innerText=r.water;
+    row.insertCell(2).innerText=r.sleep;
+    row.insertCell(3).innerText=r.exercise;
+  });
+}
+
+function displaySummary(){
+  let keys=Object.keys(records);
+  if(keys.length===0){document.getElementById('summaryText').innerText="No records yet."; return;}
+  let totalWater=0,totalSleep=0,totalExercise=0;
+  keys.forEach(k=>{totalWater+=records[k].water; totalSleep+=records[k].sleep; totalExercise+=records[k].exercise;});
+  document.getElementById('summaryText').innerText=
+    `Days Tracked: ${keys.length}\nAverage Water: ${(totalWater/keys.length).toFixed(2)} L/day\n`+
+    `Average Sleep: ${(totalSleep/keys.length).toFixed(2)} h/day\nAverage Exercise: ${(totalExercise/keys.length).toFixed(2)} min/day`;
+}
+
+function calculateBMI(){
+  let height=parseFloat(document.getElementById('height').value)/100;
+  let weight=parseFloat(document.getElementById('weight').value);
+  if(!height||!weight){alert('Enter valid height and weight'); return;}
+  let bmi=weight/(height*height);
+  let category='';
+  if(bmi<18.5) category='Underweight';
+  else if(bmi<25) category='Normal weight';
+  else if(bmi<30) category='Overweight';
+  else category='Obese';
+  document.getElementById('bmiResult').innerText=`BMI: ${bmi.toFixed(2)} (${category})`;
+}
+
+function drawCharts(){
+  const ctx=document.getElementById('chartCanvas').getContext('2d');
+  const dates=Object.keys(records).sort();
+  const waterData=dates.map(d=>records[d].water);
+  const sleepData=dates.map(d=>records[d].sleep);
+  const exerciseData=dates.map(d=>records[d].exercise);
+  if(window.myChart) window.myChart.destroy();
+  window.myChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:dates,
+      datasets:[
+        {label:'Water (L)',data:waterData,borderColor:'blue',fill:false,tension:0.2},
+        {label:'Sleep (h)',data:sleepData,borderColor:'green',fill:false,tension:0.2},
+        {label:'Exercise (min)',data:exerciseData,borderColor:'orange',fill:false,tension:0.2}
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{position:'top'}}}
+  });
+}
+
+document.getElementById('entryDate').value=new Date().toISOString().slice(0,10);
+showPage('home');
+</script>
+
+</body>
+</html>
